@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Marble Market Dashboard</title>
+<title>Marble Game FINAL Controller</title>
 
 <style>
 body {
@@ -11,40 +11,91 @@ body {
     background: #f4f4f4;
 }
 
-.station {
+.panel {
     background: white;
-    padding: 10px;
-    margin: 10px 0;
+    padding: 12px;
+    margin-bottom: 15px;
     border-radius: 8px;
 }
 
-button {
-    margin: 2px;
-    padding: 5px 10px;
+input, select, button {
+    padding: 6px;
+    margin: 4px;
 }
 
 table {
     width: 100%;
-    background: white;
     border-collapse: collapse;
-    margin-top: 10px;
+    background: white;
 }
 
-td, th {
+th, td {
     border: 1px solid #ccc;
-    padding: 8px;
+    padding: 6px;
     text-align: center;
+    font-size: 13px;
+}
+
+.log {
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.teamBox {
+    padding: 6px;
+    margin: 5px 0;
+    border: 1px solid #ddd;
+    background: #fafafa;
 }
 </style>
 </head>
 
 <body>
 
-<h1>🎯 Marble Market Dashboard</h1>
+<h1>🎮 Marble Game FINAL Controller</h1>
 
-<div id="stations"></div>
+<!-- INITIAL SETUP -->
+<div class="panel">
+<h3>🎯 Initial Setup</h3>
 
-<h2>Total Counts</h2>
+<input id="initRed" type="number" placeholder="Red" value="0">
+<input id="initGreen" type="number" placeholder="Green" value="0">
+<input id="initBlue" type="number" placeholder="Blue" value="0">
+<input id="initYellow" type="number" placeholder="Yellow" value="0">
+<input id="initOrange" type="number" placeholder="Orange" value="0">
+
+<button onclick="setInitial()">Set Initial Stock</button>
+</div>
+
+<!-- TRANSACTION -->
+<div class="panel">
+<h3>➕ Transaction</h3>
+
+<select id="team"></select>
+
+<select id="colour">
+    <option>Red</option>
+    <option>Green</option>
+    <option>Blue</option>
+    <option>Yellow</option>
+    <option>Orange</option>
+</select>
+
+<select id="type">
+    <option value="1">+ Give</option>
+    <option value="-1">- Remove</option>
+</select>
+
+<input id="amount" type="number" value="1" min="1">
+
+<button onclick="addTx()">Submit</button>
+<button onclick="undo()">↩ Undo</button>
+</div>
+
+<!-- GLOBAL STOCK -->
+<div class="panel">
+<h3>📊 Global Stock</h3>
+
 <table>
 <tr>
 <th>Red</th>
@@ -61,92 +112,232 @@ td, th {
 <td id="o">0</td>
 </tr>
 </table>
+</div>
 
-<h2>Market Values</h2>
-<div id="values"></div>
+<div class="panel">
+<h3>💰 Live Point System (Based on Global Stock)</h3>
+<div id="pointsDisplay"></div>
+</div>
+
+<!-- LOG -->
+<div class="panel log">
+<h3>📜 Event Log</h3>
+<table>
+<thead>
+<tr>
+<th>Time</th>
+<th>Team</th>
+<th>Colour</th>
+<th>Change</th>
+</tr>
+</thead>
+<tbody id="log"></tbody>
+</table>
+</div>
+
+<!-- TEAMS -->
+<div class="panel">
+<h3>👥 Station Dashboard</h3>
+<div id="teams"></div>
+</div>
+
 
 <script>
 
-const colours = ["red","green","blue","yellow","orange"];
-const stationCount = 5;
+// ================= DATA =================
+let tx = [];
 
-let data = Array.from({length: stationCount}, () => ({
-    red:0, green:0, blue:0, yellow:0, orange:0
-}));
+let totals = {
+    red:0,
+    green:0,
+    blue:0,
+    yellow:0,
+    orange:0
+};
 
-function render(){
-    const container = document.getElementById("stations");
-    container.innerHTML = "";
+let teams = [];
 
-    data.forEach((s, i) => {
-        let div = document.createElement("div");
-        div.className = "station";
-
-        div.innerHTML = `<h3>Station ${i+1}</h3>`;
-
-        colours.forEach(c => {
-            div.innerHTML += `
-                <b>${c.toUpperCase()}</b>: ${s[c]}
-                <button onclick="add(${i},'${c}',1)">+</button>
-                <button onclick="add(${i},'${c}',-1)">-</button>
-                <br>
-            `;
-        });
-
-        container.appendChild(div);
+// create 10 teams
+for(let i=1;i<=10;i++){
+    teams.push({
+        name:"Station " + i,
+        red:0,
+        green:0,
+        blue:0,
+        yellow:0,
+        orange:0
     });
 }
 
-function add(i, c, v){
-    data[i][c] += v;
-    if(data[i][c] < 0) data[i][c] = 0;
+// ================= INIT DROPDOWN =================
+function initTeams(){
+    let sel = document.getElementById("team");
+    sel.innerHTML = "";
+    teams.forEach((t,i)=>{
+        sel.innerHTML += `<option value="${i}">${t.name}</option>`;
+    });
+}
+
+// ================= SAVE / LOAD =================
+function save(){
+    localStorage.setItem("marble_final", JSON.stringify({
+        teams,
+        totals,
+        tx
+    }));
+}
+
+function load(){
+    let data = localStorage.getItem("marble_final");
+    if(data){
+        let obj = JSON.parse(data);
+        teams = obj.teams;
+        totals = obj.totals;
+        tx = obj.tx;
+    }
+}
+
+// ================= INITIAL =================
+function setInitial(){
+    totals.red = +document.getElementById("initRed").value;
+    totals.green = +document.getElementById("initGreen").value;
+    totals.blue = +document.getElementById("initBlue").value;
+    totals.yellow = +document.getElementById("initYellow").value;
+    totals.orange = +document.getElementById("initOrange").value;
+
     update();
+    save();
 }
 
-function totals(){
-    let t = {red:0,green:0,blue:0,yellow:0,orange:0};
+// ================= TRANSACTION =================
+function addTx(){
 
-    data.forEach(s=>{
-        for(let c in t){
-            t[c] += s[c];
-        }
+    let i = document.getElementById("team").value;
+    let c = document.getElementById("colour").value.toLowerCase();
+    let t = +document.getElementById("type").value;
+    let a = +document.getElementById("amount").value;
+
+    let change = t * a;
+
+    teams[i][c] += change;
+    totals[c] += change;
+
+    if(teams[i][c] < 0) teams[i][c] = 0;
+    if(totals[c] < 0) totals[c] = 0;
+
+    tx.push({
+        time:new Date().toLocaleTimeString(),
+        team:teams[i].name,
+        colour:c,
+        change
     });
 
-    return t;
+    update();
+    save();
 }
 
-function marketValues(t){
-    let arr = Object.entries(t);
-    arr.sort((a,b)=>a[1]-b[1]);
+// ================= UNDO =================
+function undo(){
+    if(tx.length === 0) return;
 
-    let v = {};
-    v[arr[0][0]] = 1;
-    v[arr[1][0]] = 2;
-    v[arr[2][0]] = 3;
-    v[arr[3][0]] = 2;
-    v[arr[4][0]] = 1;
+    let last = tx.pop();
 
-    return v;
+    let i = teams.findIndex(t => t.name === last.team);
+    let c = last.colour;
+    let change = last.change;
+
+    // reverse team change
+    teams[i][c] -= change;
+    if(teams[i][c] < 0) teams[i][c] = 0;
+
+    // reverse global stock change (IMPORTANT FIX)
+    totals[c] -= change;
+    if(totals[c] < 0) totals[c] = 0;
+
+    update();
+    save();
 }
-
+// ================= UI UPDATE =================
 function update(){
-    let t = totals();
 
-    document.getElementById("r").innerText = t.red;
-    document.getElementById("g").innerText = t.green;
-    document.getElementById("b").innerText = t.blue;
-    document.getElementById("y").innerText = t.yellow;
-    document.getElementById("o").innerText = t.orange;
+    document.getElementById("r").innerText = totals.red;
+    document.getElementById("g").innerText = totals.green;
+    document.getElementById("b").innerText = totals.blue;
+    document.getElementById("y").innerText = totals.yellow;
+    document.getElementById("o").innerText = totals.orange;
 
-    let v = marketValues(t);
-
-    document.getElementById("values").innerHTML =
-        `Red: ${v.red} | Green: ${v.green} | Blue: ${v.blue} | Yellow: ${v.yellow} | Orange: ${v.orange}`;
-
-    render(); // IMPORTANT FIX: refresh station display
+    renderTeams();
+    renderLog();
+    renderPoints();
 }
 
-render();
+// ================= TEAMS =================
+function renderTeams(){
+    let html = "";
+
+    teams.forEach(t=>{
+        html += `<div class="teamBox">
+        <b>${t.name}</b><br>
+        R:${t.red} G:${t.green} B:${t.blue} Y:${t.yellow} O:${t.orange}
+        </div>`;
+    });
+
+    document.getElementById("teams").innerHTML = html;
+}
+
+// ================= LOG =================
+function renderLog(){
+    let html = "";
+
+    tx.slice().reverse().forEach(t=>{
+        html += `<tr>
+        <td>${t.time}</td>
+        <td>${t.team}</td>
+        <td>${t.colour}</td>
+        <td>${t.change}</td>
+        </tr>`;
+    });
+
+    document.getElementById("log").innerHTML = html;
+}
+
+
+function renderPoints(){
+
+    let display = document.getElementById("pointsDisplay");
+
+    let entries = Object.entries(totals);
+
+    // if empty, show message
+    if(entries.length === 0){
+        display.innerHTML = "No data yet";
+        return;
+    }
+
+    // sort low stock → high value
+    entries.sort((a,b)=>a[1]-b[1]);
+
+    let points = {};
+
+    // assign 1–2–3–2–1 (safe check)
+    let values = [1,2,3,2,1];
+
+    for(let i=0;i<entries.length;i++){
+        points[entries[i][0]] = values[i] || 1;
+    }
+
+    let html = "";
+
+    entries.forEach(e=>{
+        html += `${e[0]}: ${points[e[0]]} pts (stock: ${e[1]})<br>`;
+    });
+
+    display.innerHTML = html;
+}
+
+// ================= START =================
+load();
+initTeams();
 update();
 
 </script>
