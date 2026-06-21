@@ -92,6 +92,14 @@ th, td {
 <button onclick="undo()">↩ Undo</button>
 </div>
 
+<div class="panel">
+  <h3>⚠️ Reset Game Data</h3>
+  <p>This will erase all station marble counts, global stock, and event-log history.</p>
+  <button onclick="resetAll()" style="background:#c62828; color:white;">
+    Reset All Data
+  </button>
+</div>
+
 <!-- GLOBAL STOCK -->
 <div class="panel">
 <h3>📊 Global Stock</h3>
@@ -335,6 +343,56 @@ function renderPoints(){
     display.innerHTML = html;
 }
 
+    // ================= RESET ALL DATA =================
+function resetAll(){
+    const confirmed = confirm(
+        "Are you sure you want to reset EVERYTHING?\n\n" +
+        "This will delete:\n" +
+        "- All global stock\n" +
+        "- All station marble counts\n" +
+        "- All event log records\n\n" +
+        "This cannot be undone."
+    );
+
+    if(!confirmed) return;
+
+    // Clear all transaction history
+    tx = [];
+
+    // Reset global stock
+    totals = {
+        red: 0,
+        green: 0,
+        blue: 0,
+        yellow: 0,
+        orange: 0
+    };
+
+    // Reset every station
+    teams.forEach(team => {
+        team.red = 0;
+        team.green = 0;
+        team.blue = 0;
+        team.yellow = 0;
+        team.orange = 0;
+    });
+
+    // Clear saved browser data
+    localStorage.removeItem("marble_final");
+
+    // Clear initial-stock input boxes
+    document.getElementById("initRed").value = 0;
+    document.getElementById("initGreen").value = 0;
+    document.getElementById("initBlue").value = 0;
+    document.getElementById("initYellow").value = 0;
+    document.getElementById("initOrange").value = 0;
+
+    // Save fresh blank game and refresh screen
+    save();
+    update();
+
+    alert("All game data has been reset.");
+}
 // ================= START =================
 load();
 initTeams();
